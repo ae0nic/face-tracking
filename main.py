@@ -1,5 +1,7 @@
 import cv2
 import time
+
+import numpy
 import numpy as np
 from mediapipe import solutions
 import mediapipe as mp
@@ -87,15 +89,16 @@ mp_drawing = mp.solutions.drawing_utils
 
 options = FaceLandmarkerOptions(
     base_options=BaseOptions(model_asset_path=model_path),
-    running_mode=VisionRunningMode.IMAGE,
+    running_mode=VisionRunningMode.VIDEO,
     output_face_blendshapes=True,
     output_facial_transformation_matrixes=True,
     num_faces=1,
-    min_face_detection_confidence=0.5,
-    min_tracking_confidence=0.5
+    min_face_detection_confidence=0.3,
+    min_tracking_confidence=0.3
 )
 
 with FaceLandmarker.create_from_options(options) as landmarker:
+    timestamp = 0
     while capture.isOpened():
 
         ret, frame = capture.read()
@@ -107,16 +110,69 @@ with FaceLandmarker.create_from_options(options) as landmarker:
         # To improve performance, optionally mark the image as not writeable to
         # pass by reference.
         image.flags.writeable = False
-        results = landmarker.detect(mp_image)
+        results = landmarker.detect_for_video(mp_image, int(timestamp * 1000))
         image.flags.writeable = True
 
         image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
 
-
         annotated_image = draw_landmarks_on_image(image, results)
+
+
+
+        roll = pitch = yaw = 0
+        if len(results.facial_transformation_matrixes) > 0:
+            # Orthonormalize vectors (they should already be orthonormal, but do this just in case)
+            # Credit to (https://en.wikipedia.org/wiki/Gram%E2%80%93Schmidt_process) for process
+            vi = np.array(results.facial_transformation_matrixes[0][0][:3])  # Currently, we discard translation data
+            vj = np.array(results.facial_transformation_matrixes[0][1][:3])
+            vk = np.array(results.facial_transformation_matrixes[0][2][:3])
+            # Gram-Schmidt process for orthonormalization
+            ui = vi
+            ei = ui / np.linalg.norm(ui)
+            uj = vj - ei * numpy.dot(ui, vj)
+            ej = uj / np.linalg.norm(uj)
+            uk = vk - ei * numpy.dot(ui, vk) - ej * numpy.dot(uj, vk)
+            ek = uk / np.linalg.norm(uk)
+
+            # Making sure that we orthonormalized properly
+            epsilon = 1e-11
+            assert abs(1 - np.linalg.norm(ei)) <= epsilon
+            assert abs(1 - np.linalg.norm(ej)) <= epsilon
+            assert abs(1 - np.linalg.norm(ek)) <= epsilon
+            assert abs(np.dot(ei, ej)) <= epsilon
+            assert abs(np.dot(ej, ek)) <= epsilon
+            assert abs(np.dot(ei, ek)) <= epsilon
+
+
+            # Now we can extract angles
+            # The order in which pitch, roll, and yaw are applied is important
+            # We assume: Yaw first, then pitch, then roll
+            # Credit to (https://www.geometrictools.com/Documentation/EulerAngles.pdf) for pseudocode
+            rotation_matrix = np.array([ui, uj, uk])
+            if rotation_matrix[1][2] < 1:
+                if rotation_matrix[1][2] > -1:
+                    pitch = np.asin(-rotation_matrix[1][2])
+                    yaw = np.atan2(rotation_matrix[0][2], rotation_matrix[2][2])
+                    roll = np.atan2(rotation_matrix[1][0], rotation_matrix[1][1])
+                else:
+                    pitch = np.pi / 2
+                    yaw = -np.atan2(-rotation_matrix[0][1], rotation_matrix[0][0])
+                    roll = 0
+            else:
+                pitch = -np.pi / 2
+                yaw = np.atan2(-rotation_matrix[0][1], rotation_matrix[0][0])
+                roll = 0
+
+        else:
+            print("No face detected")
+
+        cv2.putText(annotated_image, "Yaw: " + str(yaw), (10, 130),cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
+        cv2.putText(annotated_image, "Pitch: " + str(pitch), (10, 150),cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
+        cv2.putText(annotated_image, "Roll: " + str(roll), (10, 170),cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
 
         # Calculating the FPS
         currentTime = time.time()
+        timestamp += currentTime - previousTime
         fps = 1 / (currentTime - previousTime)
         previousTime = currentTime
 
@@ -125,91 +181,15 @@ with FaceLandmarker.create_from_options(options) as landmarker:
         if len(results.face_blendshapes) > 0:
             for shape in results.face_blendshapes[0]:
                 if shape.category_name == "jawOpen":
-                    cv2.putText(annotated_image, shape.category_name + ": " + str(shape.score), (10, 100), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
-        print(results.facial_transformation_matrixes)
+                    cv2.putText(annotated_image, shape.category_name + ": " + str(shape.score), (10, 100),
+                                cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
+
         # Display the resulting image
         cv2.imshow("Facial and Hand Landmarks", annotated_image)
-
 
         # Enter key 'q' to break the loop
         if cv2.waitKey(5) & 0xFF == ord('q'):
             break
-
-# mp_holistic = mp.solutions.holistic
-# holistic_model = mp_holistic.Holistic(
-#     min_detection_confidence=0.5,
-#     min_tracking_confidence=0.5
-# )
-#
-# # Initializing the drawing utils for drawing the facial landmarks on image
-# mp_drawing = mp.solutions.drawing_utils
-#
-# while capture.isOpened():
-#     # capture frame by frame
-#     ret, frame = capture.read()
-#
-#     # resizing the frame for better view
-#     frame = cv2.resize(frame, (800, 600))
-#
-#     # Converting the from BGR to RGB
-#     image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-#
-#     # Making predictions using holistic model
-#     # To improve performance, optionally mark the image as not writeable to
-#     # pass by reference.
-#     image.flags.writeable = False
-#     results = holistic_model.process(image)
-#     image.flags.writeable = True
-#
-#     # Converting back the RGB image to BGR
-#     image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-#
-#     # Drawing the Facial Landmarks
-#     mp_drawing.draw_landmarks(
-#         image,
-#         results.face_landmarks,
-#         mp_holistic.FACEMESH_CONTOURS,
-#         mp_drawing.DrawingSpec(
-#             color=(255, 0, 255),
-#             thickness=1,
-#             circle_radius=1
-#         ),
-#         mp_drawing.DrawingSpec(
-#             color=(0, 255, 255),
-#             thickness=1,
-#             circle_radius=1
-#         )
-#     )
-#     print(results.face_landmarks)
-#     #
-#     # # Drawing Right hand Land Marks
-#     # mp_drawing.draw_landmarks(
-#     #     image,
-#     #     results.right_hand_landmarks,
-#     #     mp_holistic.HAND_CONNECTIONS
-#     # )
-#     #
-#     # # Drawing Left hand Land Marks
-#     # mp_drawing.draw_landmarks(
-#     #     image,
-#     #     results.left_hand_landmarks,
-#     #     mp_holistic.HAND_CONNECTIONS
-#     # )
-#
-#     # Calculating the FPS
-#     currentTime = time.time()
-#     fps = 1 / (currentTime - previousTime)
-#     previousTime = currentTime
-#
-#     # Displaying FPS on the image
-#     cv2.putText(image, str(int(fps)) + " FPS", (10, 70), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
-#
-#     # Display the resulting image
-#     cv2.imshow("Facial and Hand Landmarks", image)
-#
-#     # Enter key 'q' to break the loop
-#     if cv2.waitKey(5) & 0xFF == ord('q'):
-#         break
 
 # When all the process is done
 # Release the capture and destroy all windows
