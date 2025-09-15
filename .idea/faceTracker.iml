@@ -3,8 +3,14 @@
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$">
       <excludeFolder url="file://$MODULE_DIR$/.venv" />
+<<<<<<< HEAD
     </content>
     <orderEntry type="inheritedJdk" />
+=======
+      <excludeFolder url="file://$MODULE_DIR$/.venv1" />
+    </content>
+    <orderEntry type="jdk" jdkName="Python 3.10 (face-tracking-master)" jdkType="Python SDK" />
+>>>>>>> upstream/hand
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
 </module>
