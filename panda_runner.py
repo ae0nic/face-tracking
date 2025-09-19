@@ -11,6 +11,7 @@ from panda3d.bullet import BulletWorld, BulletDebugNode
 from panda3d.bullet import BulletSoftBodyNode
 
 from VRoidModel import VRMLoader
+from landmark_runner import Landmarker
 
 
 class MyApp(ShowBase):
@@ -300,5 +301,10 @@ class MyApp(ShowBase):
         return direct.task.Task.cont
 
 if __name__ == "__main__":
-    app = MyApp()
-    app.run()
+    data_queue = []
+    with Landmarker(queue=data_queue) as landmarker:
+        app = MyApp()
+        while True:
+            app.taskMgr.step()
+            landmarker.run()
+
