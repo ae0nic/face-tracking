@@ -85,9 +85,10 @@ class Landmarker(object):
         return self
 
     def __init__(self, queue):
+        self.init_time = time.time()
         self.data_queue = queue
-        self.face_model_path = r'C:\Users\s612751\Downloads\face-tracking-master\face-tracking-master\face_landmarker.task'
-        self.hand_model_path = r'C:\Users\s612751\Downloads\face-tracking-master\face-tracking-master\hand_landmarker.task'
+        self.face_model_path = r'landmarker/face_landmarker.task'
+        self.hand_model_path = r'landmarker/hand_landmarker.task'
 
         # (0) in VideoCapture is used to connect to your computer's default camera
         self.capture = cv2.VideoCapture(0)
@@ -147,9 +148,11 @@ class Landmarker(object):
         annotated_image = self.draw_hand_landmarks(annotated_image, hand_results)
 
 
-
         roll = pitch = yaw = 0
+        face_detected = False
         if len(face_results.facial_transformation_matrixes) > 0:
+            face_detected = True
+
             # Orthonormalize vectors (they should already be orthonormal, but do this just in case)
             # Credit to (https://en.wikipedia.org/wiki/Gram%E2%80%93Schmidt_process) for process
             vi = np.array(face_results.facial_transformation_matrixes[0][0][:3])  # Currently, we discard translation data
@@ -200,7 +203,7 @@ class Landmarker(object):
         cv2.putText(annotated_image, "Roll: " + str(roll), (10, 170),cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
 
         # Calculating the FPS
-        self.currentTime = time.time()
+        self.currentTime = time.time() - self.init_time
         self.timestamp += self.currentTime - self.previousTime
         fps = 1 / (self.currentTime - self.previousTime)
         self.previousTime = self.currentTime
@@ -212,9 +215,7 @@ class Landmarker(object):
                 if shape.category_name == "jawOpen":
                     cv2.putText(annotated_image, shape.category_name + ": " + str(shape.score), (10, 100),
                                 cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
-        self.data_queue.append(self.timestamp)
-        # Display the resulting image
-        cv2.imshow("Facial and Hand Landmarks", annotated_image)
+        self.data_queue.append((face_detected, (yaw, pitch, roll), self.timestamp, face_results.face_blendshapes[0] if len(face_results.face_blendshapes) > 0 else []))
 
     def deinit(self):
         # When all the process is done

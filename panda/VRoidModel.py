@@ -26,9 +26,6 @@ class VRMLoader:
             if np.get_name() == "Face":
                 face_parts["modelRoot"] = np
                 face_animations["modelRoot"] = {}
-            elif np.get_name() == "Hairs":
-                body_parts["Hair001"] = np
-                body_animations["Hair001"] = {}
             else:
                 body_parts[np.get_name() if np.get_name() != "Body" else "modelRoot"] = np
                 body_animations[np.get_name() if np.get_name() != "Body" else "modelRoot"] = {}
@@ -52,14 +49,9 @@ class VRMLoader:
         for c in self.body.getChildren():
             if c.getName() == "Hairs":
                 self.hairs = c
-        #         # hair_parts = {"modelRoot": c}
-        #         # hair_anims = {"modelRoot": {}}
-        #         # self.hair = Actor(models=hair_parts, anims=hair_anims)
-        #         # print(self.hair.getPartNames())
-        #         # self.hair.listJoints()
-        #         c.setPos(0, 0, -1.4)
-        #         c.set_transparency(1)
-        #         c.reparentTo(self.head_joint)
+                c.setPos(0, 0, -1.4)
+                c.set_transparency(1)
+                c.reparentTo(self.head_joint)
 
     def _recurse_joint(self, joint, array):
         array.append(self.body.exposeJoint(None, "modelRoot", joint.getName()))

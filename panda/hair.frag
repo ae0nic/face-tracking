@@ -1,6 +1,6 @@
 #version 330
 
-uniform sampler2D p3d_Texture1;
+uniform sampler2D p3d_Texture0;
 
 // Input from vertex shader
 in vec2 texcoord;
@@ -33,7 +33,7 @@ out vec4 p3d_FragColor;
 void main() {
     vec3 hair_color =  1.2 * normalize(vec3(0.2, 0.3, 0.5));
 
-    vec4 color = p3d_Material.emission + vec4((0.6+0.4*texture(p3d_Texture1, texcoord).rgb) * hair_color, 1.);
+    vec4 color = p3d_Material.emission + vec4((0.6+0.4*texture(p3d_Texture0, texcoord).rgb) * hair_color, 1.);
 
     p3d_FragColor = color;
 }

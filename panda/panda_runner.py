@@ -10,8 +10,8 @@ from panda3d.core import Shader, DirectionalLight, PointLight, Vec3, LPoint3f, T
 from panda3d.bullet import BulletWorld, BulletDebugNode
 from panda3d.bullet import BulletSoftBodyNode
 
-from VRoidModel import VRMLoader
-from landmark_runner import Landmarker
+from panda.VRoidModel import VRMLoader
+from landmarker.landmark_runner import Landmarker
 
 
 class MyApp(ShowBase):
@@ -26,15 +26,13 @@ class MyApp(ShowBase):
         debugNode.showBoundingBoxes(False)
         debugNode.showNormals(False)
         debugNP = self.render.attachNewNode(debugNode)
-        debugNP.show()
 
         self.world = BulletWorld()
         self.world.setGravity(Vec3(0, 0, -9.81))
-        self.world.setDebugNode(debugNP.node())
 
-    def __init__(self):
-        print(Thread.is_threading_supported())
+    def __init__(self, data_queue):
         ShowBase.__init__(self)
+        self.data_queue = data_queue
 
         self.init_physics()
 
@@ -46,17 +44,17 @@ class MyApp(ShowBase):
 
         # Load the environment model.
 
-        vrm_model = VRMLoader("./model.gltf", self)
+        vrm_model = VRMLoader("./panda/model.gltf", self)
         self.scene = vrm_model.body
         self.face = vrm_model.face
 
         body_shader = Shader.load(Shader.SL_GLSL,
-                                  vertex="body.vert",
-                                  fragment="body.frag")
+                                  vertex="panda/body.vert",
+                                  fragment="panda/body.frag")
 
         hair_shader = Shader.load(Shader.SL_GLSL,
-                                  vertex="hair.vert",
-                                  fragment="hair.frag")
+                                  vertex="panda/hair.vert",
+                                  fragment="panda/hair.frag")
 
         self.scene.setShader(body_shader)
         self.scene.setShaderInput("LIGHTS", 2)
@@ -165,8 +163,16 @@ class MyApp(ShowBase):
         return direct.task.Task.cont
 
     def controlJoint(self, model: VRMLoader, task):
-        model.get_morph_target("29").setX((math.sin(task.time * 5) + 1) * 0.5)
+        data = self.data_queue.pop(0)
         model.control_joint("HairJoint-1906a1ce-1b58-4a73-8500-32a1e759a35c").setX((math.sin(task.time * 5) + 1) * 90)
+        neck = model.control_joint("J_Bip_C_Neck")
+        if data[0] == True:
+            neck.setH(math.degrees(data[1][0]))
+            neck.setP(math.degrees(-data[1][1]))
+            neck.setR(math.degrees(data[1][2]))
+            for shape in data[3]:
+                if shape.category_name == "jawOpen":
+                    model.get_morph_target("29").setX(shape.score)
 
         return direct.task.Task.cont
 
@@ -299,12 +305,3 @@ class MyApp(ShowBase):
             self.camera.setP(self.camera.getP() + 1)
 
         return direct.task.Task.cont
-
-if __name__ == "__main__":
-    data_queue = []
-    with Landmarker(queue=data_queue) as landmarker:
-        app = MyApp()
-        while True:
-            app.taskMgr.step()
-            landmarker.run()
-

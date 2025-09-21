@@ -1,6 +1,6 @@
 #version 330
 
-uniform sampler2D p3d_Texture1;
+uniform sampler2D p3d_Texture0;
 
 // Input from vertex shader
 in vec2 texcoord;
@@ -89,7 +89,7 @@ void main() {
       AMB_OR_DIFFUSE = DIFFUSE_LIGHT;
     }
 
-    vec4 color = p3d_Material.emission + vec4(texture(p3d_Texture1, texcoord).rgb * (SPECULAR_LIGHT + AMB_OR_DIFFUSE), texture(p3d_Texture1, texcoord).a);
+    vec4 color = p3d_Material.emission + vec4(texture(p3d_Texture0, texcoord).rgb * (SPECULAR_LIGHT + AMB_OR_DIFFUSE), texture(p3d_Texture0, texcoord).a);
     if (DEBUG_MODE == 1) {
         color = vec4(vec3(allContribtions[0]), 1.);
     } else if (DEBUG_MODE == 2) {
