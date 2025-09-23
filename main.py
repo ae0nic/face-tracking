@@ -8,4 +8,3 @@ with Landmarker(queue=data_queue) as landmarker:
     while True:
         landmarker.run()
         app.taskMgr.step()
-
