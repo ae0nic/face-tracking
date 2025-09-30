@@ -1,5 +1,3 @@
-from cgitb import handler
-
 import cv2
 import time
 
@@ -48,6 +46,29 @@ class Landmarker(object):
 
         return annotated_image
 
+    def draw_pose_landmarks(self, rgb_image, detection_result):
+        pose_landmarks_list = detection_result.pose_landmarks
+        annotated_image = np.copy(rgb_image)
+
+        # Loop through the detected faces to visualize.
+        for idx in range(len(pose_landmarks_list)):
+            pose_landmarks = pose_landmarks_list[idx]
+
+            # Draw the face landmarks.
+            pose_landmarks_proto = landmark_pb2.NormalizedLandmarkList()
+            pose_landmarks_proto.landmark.extend([
+                landmark_pb2.NormalizedLandmark(x=landmark.x, y=landmark.y, z=landmark.z) for landmark in pose_landmarks
+            ])
+
+            solutions.drawing_utils.draw_landmarks(
+                annotated_image,
+                pose_landmarks_proto,
+                mp.solutions.pose.POSE_CONNECTIONS,
+                mp.solutions.drawing_styles.get_default_pose_landmarks_style())
+
+            return annotated_image
+
+
     def draw_hand_landmarks(self, rgb_image, detection_result):
         hand_landmarks_list = detection_result.hand_landmarks
         annotated_image = np.copy(rgb_image)
@@ -75,20 +96,14 @@ class Landmarker(object):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.deinit()
 
-    def __call__(self, **kwargs):
-        self.set_queue(kwargs["queue"])
-
-    def set_queue(self, queue):
-        self.data_queue = queue
-
     def __enter__(self):
         return self
 
-    def __init__(self, queue):
+    def __init__(self):
         self.init_time = time.time()
-        self.data_queue = queue
         self.face_model_path = r'landmarker/face_landmarker.task'
         self.hand_model_path = r'landmarker/hand_landmarker.task'
+        self.pose_model_path = r'landmarker/pose_landmarker.task'
 
         # (0) in VideoCapture is used to connect to your computer's default camera
         self.capture = cv2.VideoCapture(0)
@@ -104,6 +119,9 @@ class Landmarker(object):
 
         HandLandmarker = mp.tasks.vision.HandLandmarker
         HandLandmarkerOptions = mp.tasks.vision.HandLandmarkerOptions
+
+        PoseLandmarker = mp.tasks.vision.PoseLandmarker
+        PoseLandmarkerOptions = mp.tasks.vision.PoseLandmarkerOptions
 
         self.mp_drawing = mp.solutions.drawing_utils
 
@@ -122,33 +140,43 @@ class Landmarker(object):
             num_hands=2,
             running_mode=VisionRunningMode.VIDEO
         )
+
+        self.pose_options = PoseLandmarkerOptions(
+            base_options=BaseOptions(model_asset_path=self.pose_model_path),
+            num_poses=1,
+            running_mode=VisionRunningMode.VIDEO,
+            min_pose_detection_confidence=0.5,
+            min_pose_presence_confidence=0.5,
+            min_tracking_confidence=0.5,
+        )
         self.face_landmarker = FaceLandmarker.create_from_options(self.face_options)
         self.hand_landmarker = HandLandmarker.create_from_options(self.hand_options)
+        self.pose_landmarker = PoseLandmarker.create_from_options(self.pose_options)
         self.timestamp = 0
 
 
     def run(self):
+        # Get the input from the webcam and prepare it for processing
         ret, frame = self.capture.read()
         frame = cv2.resize(frame, (800, 600))
-        frame = cv2.flip(frame, 1)
+        frame = cv2.flip(frame, 1) # Horizontal flip
         image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=image)
 
-        # Making predictions using holistic model
-        # To improve performance, optionally mark the image as not writeable to
-        # pass by reference.
+        # Making predictions using face and hand models
+        # Allow pass-by-reference by making the image read-only
         image.flags.writeable = False
         face_results = self.face_landmarker.detect_for_video(mp_image, int(self.timestamp * 1000))
         hand_results = self.hand_landmarker.detect_for_video(mp_image, int(self.timestamp * 1000))
+        pose_results = self.pose_landmarker.detect_for_video(mp_image, int(self.timestamp * 1000))
         image.flags.writeable = True
 
-        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-
-        annotated_image = self.draw_facial_landmarks(image, face_results)
-        annotated_image = self.draw_hand_landmarks(annotated_image, hand_results)
-
-
+        # Extract face angles from the model output
         roll = pitch = yaw = 0
+        x    = y     = z   = 0
+        if len(pose_results.pose_landmarks) > 0:
+            poses = pose_results.pose_world_landmarks[0]
+            (x, y, z) = ((poses[11].x + poses[12].x) / 2., (poses[11].y + poses[12].y) / 2., (poses[11].z + poses[12].z) / 2.)
         face_detected = False
         if len(face_results.facial_transformation_matrixes) > 0:
             face_detected = True
@@ -198,27 +226,37 @@ class Landmarker(object):
         else:
             print("No face detected")
 
-        cv2.putText(annotated_image, "Yaw: " + str(yaw), (10, 130),cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
-        cv2.putText(annotated_image, "Pitch: " + str(pitch), (10, 150),cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
-        cv2.putText(annotated_image, "Roll: " + str(roll), (10, 170),cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
 
-        # Calculating the FPS
+
+        # Calculating the FPS to place on the image and update timestamp
         self.currentTime = time.time() - self.init_time
         self.timestamp += self.currentTime - self.previousTime
         fps = 1 / (self.currentTime - self.previousTime)
         self.previousTime = self.currentTime
 
-        # Displaying FPS on the image
+        ## Enable for debugging
+        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+        annotated_image = image
+        if len(face_results.face_landmarks) > 0:
+            annotated_image = self.draw_facial_landmarks(image, face_results)
+        if len(hand_results.hand_landmarks) > 0:
+            annotated_image = self.draw_hand_landmarks(annotated_image, hand_results)
+        if len(pose_results.pose_landmarks) > 0:
+            annotated_image = self.draw_pose_landmarks(annotated_image, pose_results)
+        cv2.putText(annotated_image, "Yaw: " + str(yaw), (10, 130),cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
+        cv2.putText(annotated_image, "Pitch: " + str(pitch), (10, 150),cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
+        cv2.putText(annotated_image, "Roll: " + str(roll), (10, 170),cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
         cv2.putText(annotated_image, str(int(fps)) + " FPS", (10, 70), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
-        if len(face_results.face_blendshapes) > 0:
-            for shape in face_results.face_blendshapes[0]:
-                if shape.category_name == "jawOpen":
-                    cv2.putText(annotated_image, shape.category_name + ": " + str(shape.score), (10, 100),
-                                cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
-        self.data_queue.append((face_detected, (yaw, pitch, roll), self.timestamp, face_results.face_blendshapes[0] if len(face_results.face_blendshapes) > 0 else []))
+        cv2.putText(annotated_image, "X: " + str(x), (10, 200), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
+        cv2.putText(annotated_image, "Y: " + str(y), (10, 230), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
+        cv2.putText(annotated_image, "Z: " + str(z), (10, 260), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
+        cv2.imshow("Landmarks", annotated_image)
+
+        return (face_detected, (yaw, pitch, roll, x, y, z), self.timestamp,
+                face_results.face_blendshapes[0] if len(face_results.face_blendshapes) > 0 else [],
+                pose_results.pose_landmarks[0] if len(pose_results.pose_world_landmarks) > 0 else [])
 
     def deinit(self):
-        # When all the process is done
-        # Release the capture and destroy all windows
+        # Release the webcam and destroy debug windows when done
         self.capture.release()
         cv2.destroyAllWindows()

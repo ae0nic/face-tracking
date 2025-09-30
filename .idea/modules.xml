@@ -3,7 +3,6 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/faceTracker.iml" filepath="$PROJECT_DIR$/.idea/faceTracker.iml" />
-      <module fileurl="file://$USER_HOME$/Documents/panda3dTest/.idea/panda3dTest.iml" filepath="$USER_HOME$/Documents/panda3dTest/.idea/panda3dTest.iml" />
     </modules>
   </component>
 </project>
