@@ -7,15 +7,17 @@ from direct.gui.OnscreenText import OnscreenText
 from direct.showbase.ShowBase import ShowBase
 from direct.showbase.ShowBaseGlobal import globalClock
 
-from panda3d.core import Shader, DirectionalLight, PointLight, Vec3, LPoint3f, Thread
+from panda3d.core import Shader, DirectionalLight, PointLight, Vec3, LPoint3f, NodePath, rad_2_deg
 
 from panda3d.bullet import BulletWorld, BulletDebugNode
 from panda3d.bullet import BulletSoftBodyNode
+from scipy.constants import degree
 
 from panda.VRoidModel import VRMLoader
-from landmarker.landmark_runner import Landmarker
 
-from math import pi, e
+from math import pi, e, atan2
+
+from panda.udeas import decoder_machine
 
 
 class MyApp(ShowBase):
@@ -106,15 +108,23 @@ class MyApp(ShowBase):
             rope_nodes.append(rope.getNodes())
             self.world.attachSoftBody(rope)
 
-        self.joints = {}
-        self.joints["Mouth"] = vrm_model.get_morph_target("29")
-        self.joints["Eye_L"] = vrm_model.get_morph_target("14")
-        self.joints["Eye_R"] = vrm_model.get_morph_target("13")
-        self.joints["Head"] = vrm_model.control_joint("J_Bip_C_Head")
-        self.joints["Neck"] = vrm_model.control_joint("J_Bip_C_Neck")
-        self.joints["Chest_U"] = vrm_model.control_joint("J_Bip_C_UpperChest")
-        self.joints["Chest"] = vrm_model.control_joint("J_Bip_C_Chest")
-        self.joints["Spine"] = vrm_model.control_joint("J_Bip_C_Spine")
+        self.controlled_joints = {}
+        self.controlled_joints["Mouth"] = vrm_model.get_morph_target("29")
+        self.controlled_joints["Eye_L"] = vrm_model.get_morph_target("14")
+        self.controlled_joints["Eye_R"] = vrm_model.get_morph_target("13")
+        self.controlled_joints["Head"] = vrm_model.control_joint("J_Bip_C_Head")
+        self.controlled_joints["Neck"] = vrm_model.control_joint("J_Bip_C_Neck")
+        self.controlled_joints["Chest_U"] = vrm_model.control_joint("J_Bip_C_UpperChest")
+        self.controlled_joints["Chest"] = vrm_model.control_joint("J_Bip_C_Chest")
+        self.controlled_joints["Spine"] = vrm_model.control_joint("J_Bip_C_Spine")
+        self.controlled_joints["Shoulder_L"] = vrm_model.control_joint("J_Bip_R_UpperArm")
+        self.controlled_joints["Elbow_L"] = vrm_model.control_joint("J_Bip_R_LowerArm")
+        self.controlled_joints["Hand_L"] = vrm_model.control_joint("J_Bip_R_Hand")
+        self.controlled_joints["Shoulder_R"] = vrm_model.control_joint("J_Bip_L_UpperArm")
+        self.controlled_joints["Elbow_R"] = vrm_model.control_joint("J_Bip_L_LowerArm")
+        self.controlled_joints["Hand_R"] = vrm_model.control_joint("J_Bip_L_Hand")
+
+
 
         # Run these every frame
         self.taskMgr.add(self.moveCamera, "MoveCamera")
@@ -170,14 +180,20 @@ class MyApp(ShowBase):
 
     def controlJoint(self, model: VRMLoader, task):
         data = self.landmarker.run()
-        head = self.joints["Head"]
-        neck = self.joints["Neck"]
-        chestUpper = self.joints["Chest_U"]
-        chest = self.joints["Chest"]
-        spine = self.joints["Spine"]
-        mouth = self.joints["Mouth"]
-        eye_left = self.joints["Eye_L"]
-        eye_right = self.joints["Eye_R"]
+        head = self.controlled_joints["Head"]
+        neck = self.controlled_joints["Neck"]
+        chestUpper = self.controlled_joints["Chest_U"]
+        chest = self.controlled_joints["Chest"]
+        spine = self.controlled_joints["Spine"]
+        mouth = self.controlled_joints["Mouth"]
+        eye_left = self.controlled_joints["Eye_L"]
+        eye_right = self.controlled_joints["Eye_R"]
+        shoulder_left = self.controlled_joints["Shoulder_L"]
+        elbow_left = self.controlled_joints["Elbow_L"]
+        hand_left = self.controlled_joints["Hand_L"]
+        shoulder_right = self.controlled_joints["Shoulder_R"]
+        elbow_right = self.controlled_joints["Elbow_R"]
+        hand_right = self.controlled_joints["Hand_R"]
 
         Hmax = .3 * pi
         Hmin = -.3 * pi
@@ -197,13 +213,54 @@ class MyApp(ShowBase):
                         lp - ((lp - tp) * pow(e, -(angle - tp) / (lp - tp)))) if angle >= tp else angle
             return ang * (180 / pi)
 
+        def optimize_bone_for_slope(shoulder: NodePath, end: NodePath, hand: NodePath,
+                                    pos1: tuple[float, float, float], pos2: tuple[float, float, float],
+                                    pos3: tuple[float, float, float]):
+            (x1, y1, z1) = pos1
+            (x2, y2, z2) = pos2
+            (x3, y3, z3) = pos3
+            delta_x1 = x2 - x1
+            delta_y1 = y2 - y1
+            delta_z1 = z2 - z1
+
+            delta_x2 = x3 - x2
+            delta_y2 = y3 - y2
+            delta_z2 = z3 - z2
+
+            pitch1 = rad_2_deg(atan2(delta_y1, delta_x1))
+            heading1 = rad_2_deg(atan2(delta_z1, delta_x1))
+
+            pitch2 = rad_2_deg(atan2(delta_y2, delta_x2))
+            heading2 = rad_2_deg(atan2(delta_z2, delta_x2))
+            shoulder.setR(pitch1)
+            # Optional
+            # shoulder.setP(heading1)
+
+
 
 
         if len(data[4]) > 0:
-            left_shoulder = data[4][11]
-            left_elbow = data[4][13]
-            left_hand = data[4][15]
-            # print("Arm slope: " + str((left_hand.x, left_hand.y, left_hand.z)))
+            # TODO: remember that i flipped the horizontal earlier in the landmarker
+            # X: Increase to right of hips
+            # Y: Increase down below hips
+            # Z: Increase towards camera (?)
+
+            right_shoulder = data[4][11]
+            right_elbow = data[4][13]
+            right_hand = data[4][15]
+
+            left_shoulder = data[4][12]
+            left_elbow = data[4][14]
+            left_hand = data[4][16]
+            optimize_bone_for_slope(shoulder_left, elbow_left, hand_left,
+                                    (-left_shoulder.x, left_shoulder.y, -left_shoulder.z),
+                                    (-left_elbow.x, left_elbow.y, -left_elbow.z),
+                                    (-left_hand.x, left_hand.y, -left_hand.z))
+
+            optimize_bone_for_slope(shoulder_right, elbow_right, hand_right,
+                                    (right_shoulder.x, -right_shoulder.y, -right_shoulder.z),
+                                    (right_elbow.x, -right_elbow.y, -right_elbow.z),
+                                    (right_hand.x, -right_hand.y, -right_hand.z))
 
 
         # model.control_joint("HairJoint-1906a1ce-1b58-4a73-8500-32a1e759a35c").setX((math.sin(task.time * 5) + 1) * 90)

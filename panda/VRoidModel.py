@@ -8,7 +8,8 @@ from panda3d.bullet import BulletSoftBodyNode
 
 class VRMLoader:
     def __init__(self, file: str, app: ShowBase):
-        self.joints = {}
+        self.controlled_joints = {}
+        self.exposed_joints = {}
         self.scale = 1
         self.pos = (0, 0, 0)
 
@@ -100,9 +101,9 @@ class VRMLoader:
         :param name: The name of the morph target to obtain, which is probably a number.
         :return: A NodePath representing the morph target. Using setX() moves the morph target.
         """
-        if self.joints.get(name) is None:
-            self.joints[name] = self.face.controlJoint(None, "modelRoot", name)
-        return self.joints.get(name)
+        if self.controlled_joints.get(name) is None:
+            self.controlled_joints[name] = self.face.controlJoint(None, "modelRoot", name)
+        return self.controlled_joints.get(name)
 
     def control_joint(self, name: str) -> NodePath:
         """
@@ -110,9 +111,9 @@ class VRMLoader:
         :param name: The name of the joint to obtain.
         :return: A NodePath representing the joint.
         """
-        if self.joints.get(name) is None:
-            self.joints[name] = self.body.controlJoint(None, "modelRoot", name)
-        return self.joints.get(name)
+        if self.controlled_joints.get(name) is None:
+            self.controlled_joints[name] = self.body.controlJoint(None, "modelRoot", name)
+        return self.controlled_joints.get(name)
 
     def expose_joint(self, name: str) -> NodePath:
         """
@@ -120,4 +121,6 @@ class VRMLoader:
         :param name: The name of the joint to obtain.
         :return: A NodePath representing the joint.
         """
-        return self.body.exposeJoint(None, "modelRoot", name)
+        if self.exposed_joints.get(name) is None:
+            self.exposed_joints[name] = self.body.exposeJoint(None, "modelRoot", name)
+        return self.exposed_joints.get(name)

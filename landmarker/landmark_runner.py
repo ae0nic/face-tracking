@@ -167,7 +167,7 @@ class Landmarker(object):
         # Allow pass-by-reference by making the image read-only
         image.flags.writeable = False
         face_results = self.face_landmarker.detect_for_video(mp_image, int(self.timestamp * 1000))
-        hand_results = self.hand_landmarker.detect_for_video(mp_image, int(self.timestamp * 1000))
+        # hand_results = self.hand_landmarker.detect_for_video(mp_image, int(self.timestamp * 1000))
         pose_results = self.pose_landmarker.detect_for_video(mp_image, int(self.timestamp * 1000))
         image.flags.writeable = True
 
@@ -239,8 +239,6 @@ class Landmarker(object):
         annotated_image = image
         if len(face_results.face_landmarks) > 0:
             annotated_image = self.draw_facial_landmarks(image, face_results)
-        if len(hand_results.hand_landmarks) > 0:
-            annotated_image = self.draw_hand_landmarks(annotated_image, hand_results)
         if len(pose_results.pose_landmarks) > 0:
             annotated_image = self.draw_pose_landmarks(annotated_image, pose_results)
         cv2.putText(annotated_image, "Yaw: " + str(yaw), (10, 130),cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
@@ -254,7 +252,7 @@ class Landmarker(object):
 
         return (face_detected, (yaw, pitch, roll, x, y, z), self.timestamp,
                 face_results.face_blendshapes[0] if len(face_results.face_blendshapes) > 0 else [],
-                pose_results.pose_landmarks[0] if len(pose_results.pose_world_landmarks) > 0 else [])
+                pose_results.pose_world_landmarks[0] if len(pose_results.pose_world_landmarks) > 0 else [])
 
     def deinit(self):
         # Release the webcam and destroy debug windows when done
