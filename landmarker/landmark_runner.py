@@ -102,8 +102,8 @@ class Landmarker(object):
     def __init__(self):
         self.init_time = time.time()
         self.face_model_path = r'landmarker/face_landmarker.task'
-        self.hand_model_path = r'landmarker/hand_landmarker.task'
-        self.pose_model_path = r'landmarker/pose_landmarker.task'
+        # self.hand_model_path = r'landmarker/hand_landmarker.task'
+        self.pose_model_path = r'landmarker/pose_landmarker_full.task'
 
         # (0) in VideoCapture is used to connect to your computer's default camera
         self.capture = cv2.VideoCapture(0)
@@ -117,8 +117,8 @@ class Landmarker(object):
         FaceLandmarkerOptions = mp.tasks.vision.FaceLandmarkerOptions
         VisionRunningMode = mp.tasks.vision.RunningMode
 
-        HandLandmarker = mp.tasks.vision.HandLandmarker
-        HandLandmarkerOptions = mp.tasks.vision.HandLandmarkerOptions
+        # HandLandmarker = mp.tasks.vision.HandLandmarker
+        # HandLandmarkerOptions = mp.tasks.vision.HandLandmarkerOptions
 
         PoseLandmarker = mp.tasks.vision.PoseLandmarker
         PoseLandmarkerOptions = mp.tasks.vision.PoseLandmarkerOptions
@@ -135,11 +135,11 @@ class Landmarker(object):
             min_tracking_confidence=0.3
         )
 
-        self.hand_options = HandLandmarkerOptions(
-            base_options=BaseOptions(model_asset_path=self.hand_model_path),
-            num_hands=2,
-            running_mode=VisionRunningMode.VIDEO
-        )
+        # self.hand_options = HandLandmarkerOptions(
+        #     base_options=BaseOptions(model_asset_path=self.hand_model_path),
+        #     num_hands=2,
+        #     running_mode=VisionRunningMode.VIDEO
+        # )
 
         self.pose_options = PoseLandmarkerOptions(
             base_options=BaseOptions(model_asset_path=self.pose_model_path),
@@ -150,7 +150,7 @@ class Landmarker(object):
             min_tracking_confidence=0.5,
         )
         self.face_landmarker = FaceLandmarker.create_from_options(self.face_options)
-        self.hand_landmarker = HandLandmarker.create_from_options(self.hand_options)
+        # self.hand_landmarker = HandLandmarker.create_from_options(self.hand_options)
         self.pose_landmarker = PoseLandmarker.create_from_options(self.pose_options)
         self.timestamp = 0
 

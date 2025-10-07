@@ -24,12 +24,12 @@ class VRMLoader:
 
         for np in model.get_children():
             print(np.get_name())
-            if np.get_name() == "Face":
-                face_parts["modelRoot"] = np
-                face_animations["modelRoot"] = {}
-            else:
-                body_parts[np.get_name() if np.get_name() != "Body" else "modelRoot"] = np
-                body_animations[np.get_name() if np.get_name() != "Body" else "modelRoot"] = {}
+            # if np.get_name() == "Face":
+            #     face_parts["modelRoot"] = np
+            #     face_animations["modelRoot"] = {}
+            # else:
+            #     body_parts[np.get_name() if np.get_name() != "Body" else "modelRoot"] = np
+            #     body_animations[np.get_name() if np.get_name() != "Body" else "modelRoot"] = {}
 
 
 

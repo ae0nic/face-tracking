@@ -23,7 +23,7 @@ from panda.udeas import decoder_machine
 class MyApp(ShowBase):
     key_map = {"w": False, "s": False, "a": False, "d": False, "e": False, "q": False,
                "arrow_left": False, "arrow_right": False, "arrow_down": False, "arrow_up": False,
-               "debug": False, "debug_draw": 0}
+               "debug": False, "debug_draw": 0, "b": False}
     world = None
     def init_physics(self):
         debugNode = BulletDebugNode('Debug')
@@ -49,7 +49,7 @@ class MyApp(ShowBase):
         self.setBackgroundColor(0., 1., 0.)
 
         # Load the character model
-        vrm_model = VRMLoader("./panda/model.gltf", self)
+        vrm_model = VRMLoader("./panda/Nezure.gltf", self)
         self.scene = vrm_model.body
         self.face = vrm_model.face
 
@@ -88,7 +88,7 @@ class MyApp(ShowBase):
         vrm_model.rescale(12)
         vrm_model.position(0, -15, 0)
         self.scene.setH(180)
-        self.camera.setY(-40)
+        self.camera.setPos(0, -16, 19)
 
         # Add physics to hair (will work when Justin makes new model)
         (pos, joints) = vrm_model.get_hair("*Head*", "HairJoint-")
@@ -139,6 +139,8 @@ class MyApp(ShowBase):
         self.accept("2", self.twoDown)
         self.accept("n", self.nDown)
         self.accept("0", self.zeroDown)
+
+        self.accept("b", self.bDown)
 
         self.accept("w", self.wDown)
         self.accept("s", self.sDown)
@@ -213,7 +215,7 @@ class MyApp(ShowBase):
                         lp - ((lp - tp) * pow(e, -(angle - tp) / (lp - tp)))) if angle >= tp else angle
             return ang * (180 / pi)
 
-        def optimize_bone_for_slope(shoulder: NodePath, end: NodePath, hand: NodePath,
+        def optimize_bone_for_slope(shoulder: NodePath, elbow: NodePath, hand: NodePath,
                                     pos1: tuple[float, float, float], pos2: tuple[float, float, float],
                                     pos3: tuple[float, float, float]):
             (x1, y1, z1) = pos1
@@ -232,14 +234,20 @@ class MyApp(ShowBase):
 
             pitch2 = rad_2_deg(atan2(delta_y2, delta_x2))
             heading2 = rad_2_deg(atan2(delta_z2, delta_x2))
+            # Up - down
             shoulder.setR(pitch1)
+            # Forward - backward
+            shoulder.setP(heading1)
+
+            # Bend
+            elbow.setR(pitch2 - pitch1)
+            # elbow.setP(heading2 - heading1)
             # Optional
-            # shoulder.setP(heading1)
 
 
 
 
-        if len(data[4]) > 0:
+        if len(data[4]) > 0 and not self.key_map["b"]:
             # TODO: remember that i flipped the horizontal earlier in the landmarker
             # X: Increase to right of hips
             # Y: Increase down below hips
@@ -261,7 +269,16 @@ class MyApp(ShowBase):
                                     (right_shoulder.x, -right_shoulder.y, -right_shoulder.z),
                                     (right_elbow.x, -right_elbow.y, -right_elbow.z),
                                     (right_hand.x, -right_hand.y, -right_hand.z))
+        else:
+            shoulder_left.setR(60)
+            shoulder_left.setP(0)
+            shoulder_right.setR(-60)
+            shoulder_right.setP(0)
 
+            elbow_left.setR(0)
+            elbow_left.setP(0)
+            elbow_right.setR(0)
+            elbow_right.setP(0)
 
         # model.control_joint("HairJoint-1906a1ce-1b58-4a73-8500-32a1e759a35c").setX((math.sin(task.time * 5) + 1) * 90)
         if data[0] == True:
@@ -358,6 +375,9 @@ class MyApp(ShowBase):
 
     def qDown(self):
         self.key_map["q"] = True
+
+    def bDown(self):
+        self.key_map["b"] = not self.key_map["b"]
 
     def qUp(self):
         self.key_map["q"] = False
