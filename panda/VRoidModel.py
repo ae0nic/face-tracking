@@ -17,42 +17,22 @@ class VRMLoader:
 
         body_parts = {}
         body_animations = {}
-        hair_parts = {}
-        hair_animations = {}
-        face_parts = {}
-        face_animations = {}
+
+        print("------------------")
 
         for np in model.get_children():
             print(np.get_name())
-            # if np.get_name() == "Face":
-            #     face_parts["modelRoot"] = np
-            #     face_animations["modelRoot"] = {}
-            # else:
-            #     body_parts[np.get_name() if np.get_name() != "Body" else "modelRoot"] = np
-            #     body_animations[np.get_name() if np.get_name() != "Body" else "modelRoot"] = {}
+            np.ls()
+            body_parts[np.get_name() if np.get_name() != "toConvert2" else "modelRoot"] = np
+            body_animations[np.get_name() if np.get_name() != "toConvert2" else "modelRoot"] = {}
+        print("------------------")
 
 
 
         self.body = Actor(models=body_parts, anims=body_animations)
-        self.face = Actor(models=face_parts, anims=face_animations)
-        # self.hair = Actor(models=hair_parts, anims=hair_animations)
-        # self.hair.listJoints()
-        # self.body.listJoints()
+        self.body.ls()
+        print(self.body.listJoints())
 
-        # self.face.listJoints()
-        self.face.setPos(0, 0, -1.4)
-
-        self.head_joint = self.body.exposeJoint(None, "modelRoot", "J_Bip_C_Head")
-
-        self.face.reparentTo(self.head_joint)
-
-
-        for c in self.body.getChildren():
-            if c.getName() == "Hairs":
-                self.hairs = c
-                c.setPos(0, 0, -1.4)
-                c.set_transparency(1)
-                c.reparentTo(self.head_joint)
 
     def _recurse_joint(self, joint, array):
         array.append(self.body.exposeJoint(None, "modelRoot", joint.getName()))
@@ -102,7 +82,7 @@ class VRMLoader:
         :return: A NodePath representing the morph target. Using setX() moves the morph target.
         """
         if self.controlled_joints.get(name) is None:
-            self.controlled_joints[name] = self.face.controlJoint(None, "modelRoot", name)
+            self.controlled_joints[name] = self.body.controlJoint(None, "modelRoot", name)
         return self.controlled_joints.get(name)
 
     def control_joint(self, name: str) -> NodePath:

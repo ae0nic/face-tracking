@@ -35,7 +35,7 @@ void main() {
     vec3 VIEW = vec3(p3d_ViewMatrix[2][0], p3d_ViewMatrix[2][1], p3d_ViewMatrix[2][2]);
 
     vec3 DIFFUSE_LIGHT = vec3(0.);
-    vec3 AMBIENT_LIGHT = vec3(0.6);
+    vec3 AMBIENT_LIGHT = vec3(0.8);
     vec3 SPECULAR_LIGHT = vec3(0);
 
     float roughness = .8;
@@ -96,6 +96,7 @@ void main() {
         color = vec4(vec3(allContribtions[1]), 1.);
     } else if (DEBUG_MODE == 9) {
         color = vec4(NORMAL, 1.0);
+        p3d_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
     }
 
     p3d_FragColor = color;

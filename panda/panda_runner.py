@@ -49,9 +49,9 @@ class MyApp(ShowBase):
         self.setBackgroundColor(0., 1., 0.)
 
         # Load the character model
-        vrm_model = VRMLoader("./panda/Nezure.gltf", self)
+        vrm_model = VRMLoader("./panda/model.gltf", self)
         self.scene = vrm_model.body
-        self.face = vrm_model.face
+
 
         # Create our shaders
         body_shader = Shader.load(Shader.SL_GLSL,
@@ -66,7 +66,7 @@ class MyApp(ShowBase):
         self.scene.setShaderInput("LIGHTS", 2)
         self.scene.setShaderInput("DEBUG_MODE", self.key_map["debug_draw"])
 
-        vrm_model.hairs.setShader(hair_shader)
+        # vrm_model.hairs.setShader(hair_shader)
 
         # Set up lighting
         d_light_node = DirectionalLight("d_light")
@@ -91,38 +91,39 @@ class MyApp(ShowBase):
         self.camera.setPos(0, -16, 19)
 
         # Add physics to hair (will work when Justin makes new model)
-        (pos, joints) = vrm_model.get_hair("*Head*", "HairJoint-")
-        exposed_nodes = []
-        rope_nodes = []
-        for j, p in zip(joints, pos):
-            origin = LPoint3f(p[0][0], p[0][1], p[0][2])
-            end = LPoint3f(p[len(p) - 1][0], p[len(p) - 1][1], p[len(p) - 1][2])
-            rope = BulletSoftBodyNode.makeRope(self.world.getWorldInfo(), origin, end, len(p) - 1, 1)
-            rope.setTotalMass(50.0)
-            np = self.render.attachNewNode(rope)
-            np.reparentTo(vrm_model.head_joint)
-            strand = []
-            for joint in j:
-                strand.append(vrm_model.control_joint(joint.getName()))
-            exposed_nodes.append(strand)
-            rope_nodes.append(rope.getNodes())
-            self.world.attachSoftBody(rope)
+        #
+        # (pos, joints) = vrm_model.get_hair("*Head*", "HairJoint-")
+        # exposed_nodes = []
+        # rope_nodes = []
+        # for j, p in zip(joints, pos):
+        #     origin = LPoint3f(p[0][0], p[0][1], p[0][2])
+        #     end = LPoint3f(p[len(p) - 1][0], p[len(p) - 1][1], p[len(p) - 1][2])
+        #     rope = BulletSoftBodyNode.makeRope(self.world.getWorldInfo(), origin, end, len(p) - 1, 1)
+        #     rope.setTotalMass(50.0)
+        #     np = self.render.attachNewNode(rope)
+        #     np.reparentTo(vrm_model.head_joint)
+        #     strand = []
+        #     for joint in j:
+        #         strand.append(vrm_model.control_joint(joint.getName()))
+        #     exposed_nodes.append(strand)
+        #     rope_nodes.append(rope.getNodes())
+        #     self.world.attachSoftBody(rope)
 
         self.controlled_joints = {}
-        self.controlled_joints["Mouth"] = vrm_model.get_morph_target("29")
-        self.controlled_joints["Eye_L"] = vrm_model.get_morph_target("14")
-        self.controlled_joints["Eye_R"] = vrm_model.get_morph_target("13")
-        self.controlled_joints["Head"] = vrm_model.control_joint("J_Bip_C_Head")
-        self.controlled_joints["Neck"] = vrm_model.control_joint("J_Bip_C_Neck")
-        self.controlled_joints["Chest_U"] = vrm_model.control_joint("J_Bip_C_UpperChest")
-        self.controlled_joints["Chest"] = vrm_model.control_joint("J_Bip_C_Chest")
-        self.controlled_joints["Spine"] = vrm_model.control_joint("J_Bip_C_Spine")
-        self.controlled_joints["Shoulder_L"] = vrm_model.control_joint("J_Bip_R_UpperArm")
-        self.controlled_joints["Elbow_L"] = vrm_model.control_joint("J_Bip_R_LowerArm")
-        self.controlled_joints["Hand_L"] = vrm_model.control_joint("J_Bip_R_Hand")
-        self.controlled_joints["Shoulder_R"] = vrm_model.control_joint("J_Bip_L_UpperArm")
-        self.controlled_joints["Elbow_R"] = vrm_model.control_joint("J_Bip_L_LowerArm")
-        self.controlled_joints["Hand_R"] = vrm_model.control_joint("J_Bip_L_Hand")
+        self.controlled_joints["Mouth"] = vrm_model.get_morph_target("target_2")
+        self.controlled_joints["Eye_L"] = vrm_model.get_morph_target("target_1")
+        self.controlled_joints["Eye_R"] = vrm_model.get_morph_target("target_0")
+        self.controlled_joints["Head"] = vrm_model.control_joint("head")
+        self.controlled_joints["Neck"] = vrm_model.control_joint("neck")
+        self.controlled_joints["Chest_U"] = vrm_model.control_joint("chest")
+        self.controlled_joints["Chest"] = vrm_model.control_joint("chest")
+        self.controlled_joints["Spine"] = vrm_model.control_joint("spine")
+        self.controlled_joints["Shoulder_L"] = vrm_model.control_joint("upper_arm.R")
+        self.controlled_joints["Elbow_L"] = vrm_model.control_joint("lower_arm.R")
+        self.controlled_joints["Hand_L"] = vrm_model.control_joint("hand.R")
+        self.controlled_joints["Shoulder_R"] = vrm_model.control_joint("upper_arm.L")
+        self.controlled_joints["Elbow_R"] = vrm_model.control_joint("lower_arm.L")
+        self.controlled_joints["Hand_R"] = vrm_model.control_joint("hand.L")
 
 
 
@@ -131,7 +132,7 @@ class MyApp(ShowBase):
         self.taskMgr.add(self.controlJoint, "ControlJoint", extraArgs=[vrm_model], appendTask=True) # Move the model
 
         self.taskMgr.add(self.run_physics, 'UpdatePhysics')
-        self.taskMgr.add(self.update_hair, "UpdateHair", extraArgs=[exposed_nodes, rope_nodes, vrm_model.head_joint], appendTask=True)
+        # self.taskMgr.add(self.update_hair, "UpdateHair", extraArgs=[exposed_nodes, rope_nodes, vrm_model.head_joint], appendTask=True)
 
         # Camera and debug controls
         self.accept("g", self.gDown)

@@ -1,3 +1,5 @@
+import math
+
 import cv2
 import time
 
@@ -211,16 +213,16 @@ class Landmarker(object):
             rotation_matrix = np.array([ui, uj, uk])
             if rotation_matrix[1][2] < 1:
                 if rotation_matrix[1][2] > -1:
-                    pitch = np.asin(-rotation_matrix[1][2])
-                    yaw = np.atan2(rotation_matrix[0][2], rotation_matrix[2][2])
-                    roll = np.atan2(rotation_matrix[1][0], rotation_matrix[1][1])
+                    pitch = math.asin(-rotation_matrix[1][2])
+                    yaw = math.atan2(rotation_matrix[0][2], rotation_matrix[2][2])
+                    roll = math.atan2(rotation_matrix[1][0], rotation_matrix[1][1])
                 else:
                     pitch = np.pi / 2
-                    yaw = -np.atan2(-rotation_matrix[0][1], rotation_matrix[0][0])
+                    yaw = -math.atan2(-rotation_matrix[0][1], rotation_matrix[0][0])
                     roll = 0
             else:
                 pitch = -np.pi / 2
-                yaw = np.atan2(-rotation_matrix[0][1], rotation_matrix[0][0])
+                yaw = math.atan2(-rotation_matrix[0][1], rotation_matrix[0][0])
                 roll = 0
 
         else:
