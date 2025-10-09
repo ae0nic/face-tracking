@@ -70,6 +70,14 @@ class MyApp(ShowBase):
         self.scene.setH(180)
         self.camera.setPos(0, -16, 21)
 
+        (pos, joints) = vrm_model.get_hair("head")
+        controlled_nodes = []
+        for j in joints:
+            strand = []
+            for bone in j:
+                strand.append(vrm_model.control_joint(bone.getName()))
+            controlled_nodes.append(strand)
+
         self.controlled_joints = {}
         self.controlled_joints["Mouth"] = vrm_model.get_morph_target("target_2")
         self.controlled_joints["Eye_L"] = vrm_model.get_morph_target("target_1")
@@ -90,7 +98,9 @@ class MyApp(ShowBase):
 
         # Run these every frame
         self.taskMgr.add(self.moveCamera, "MoveCamera")
+        self.taskMgr.add(self.moveHair, "MoveHair", extraArgs=[controlled_nodes], appendTask=True)
         self.taskMgr.add(self.controlJoint, "ControlJoint", extraArgs=[vrm_model], appendTask=True) # Move the model
+
 
         # Camera and debug controls
         self.accept("g", self.gDown)
@@ -121,6 +131,20 @@ class MyApp(ShowBase):
         self.accept("arrow_up", self.arrow_upDown)
         self.accept("arrow_down-up", self.arrow_downUp)
         self.accept("arrow_up-up", self.arrow_upUp)
+
+    def moveHair(self, strands, task):
+        for strand in strands:
+            for i, joint in enumerate(strand):
+                invert_y = 1
+                invert_x = 1
+                if "side" in joint.getName():
+                    invert_y = -1
+                if "R" in joint.getName():
+                    invert_x = -1
+
+                joint.setH((math.sin(task.time / 2 + (i * pi/4)) + pi/6) / pi * 60 * invert_x)
+                joint.setP((math.sin(task.time / 1.2 + (i * pi/4)) + pi/2) / pi * 15 * invert_y)
+        return direct.task.Task.cont
 
     def controlJoint(self, model: VRMLoader, task):
         data = self.landmarker.run()
