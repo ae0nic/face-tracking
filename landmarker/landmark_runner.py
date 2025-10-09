@@ -251,6 +251,7 @@ class Landmarker(object):
         cv2.putText(annotated_image, "Y: " + str(y), (10, 230), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
         cv2.putText(annotated_image, "Z: " + str(z), (10, 260), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
         cv2.imshow("Landmarks", annotated_image)
+        cv2.waitKey(1)
 
         return (face_detected, (yaw, pitch, roll, x, y, z), self.timestamp,
                 face_results.face_blendshapes[0] if len(face_results.face_blendshapes) > 0 else [],

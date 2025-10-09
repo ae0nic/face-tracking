@@ -7,7 +7,7 @@ from direct.gui.OnscreenText import OnscreenText
 from direct.showbase.ShowBase import ShowBase
 from direct.showbase.ShowBaseGlobal import globalClock
 
-from panda3d.core import Shader, DirectionalLight, PointLight, Vec3, LPoint3f, NodePath, rad_2_deg
+from panda3d.core import Shader, DirectionalLight, PointLight, Vec3, LPoint3f, NodePath, rad_2_deg, LVector3
 
 from panda3d.bullet import BulletWorld, BulletDebugNode
 from panda3d.bullet import BulletSoftBodyNode
@@ -23,25 +23,11 @@ from panda.udeas import decoder_machine
 class MyApp(ShowBase):
     key_map = {"w": False, "s": False, "a": False, "d": False, "e": False, "q": False,
                "arrow_left": False, "arrow_right": False, "arrow_down": False, "arrow_up": False,
-               "debug": False, "debug_draw": 0, "b": False}
-    world = None
-    def init_physics(self):
-        debugNode = BulletDebugNode('Debug')
-        debugNode.showWireframe(True)
-        debugNode.showConstraints(True)
-        debugNode.showBoundingBoxes(False)
-        debugNode.showNormals(False)
-        debugNP = self.render.attachNewNode(debugNode)
-
-        self.world = BulletWorld()
-        self.world.setGravity(Vec3(0, 0, -9.81))
+               "debug": False, "debug_draw": 0, "b": True}
 
     def __init__(self, landmarker):
         ShowBase.__init__(self)
         self.landmarker = landmarker
-
-        self.init_physics()
-
         self.x_text = None
         self.y_text = None
         self.z_text = None
@@ -58,15 +44,9 @@ class MyApp(ShowBase):
                                   vertex="panda/body.vert",
                                   fragment="panda/body.frag")
 
-        hair_shader = Shader.load(Shader.SL_GLSL,
-                                  vertex="panda/hair.vert",
-                                  fragment="panda/hair.frag")
-
         self.scene.setShader(body_shader)
         self.scene.setShaderInput("LIGHTS", 2)
         self.scene.setShaderInput("DEBUG_MODE", self.key_map["debug_draw"])
-
-        # vrm_model.hairs.setShader(hair_shader)
 
         # Set up lighting
         d_light_node = DirectionalLight("d_light")
@@ -86,28 +66,9 @@ class MyApp(ShowBase):
 
         # Prepare the model for rendering
         vrm_model.rescale(12)
-        vrm_model.position(0, -15, 0)
+        vrm_model.position(0, 0, 3)
         self.scene.setH(180)
-        self.camera.setPos(0, -16, 19)
-
-        # Add physics to hair (will work when Justin makes new model)
-        #
-        # (pos, joints) = vrm_model.get_hair("*Head*", "HairJoint-")
-        # exposed_nodes = []
-        # rope_nodes = []
-        # for j, p in zip(joints, pos):
-        #     origin = LPoint3f(p[0][0], p[0][1], p[0][2])
-        #     end = LPoint3f(p[len(p) - 1][0], p[len(p) - 1][1], p[len(p) - 1][2])
-        #     rope = BulletSoftBodyNode.makeRope(self.world.getWorldInfo(), origin, end, len(p) - 1, 1)
-        #     rope.setTotalMass(50.0)
-        #     np = self.render.attachNewNode(rope)
-        #     np.reparentTo(vrm_model.head_joint)
-        #     strand = []
-        #     for joint in j:
-        #         strand.append(vrm_model.control_joint(joint.getName()))
-        #     exposed_nodes.append(strand)
-        #     rope_nodes.append(rope.getNodes())
-        #     self.world.attachSoftBody(rope)
+        self.camera.setPos(0, -16, 21)
 
         self.controlled_joints = {}
         self.controlled_joints["Mouth"] = vrm_model.get_morph_target("target_2")
@@ -118,21 +79,18 @@ class MyApp(ShowBase):
         self.controlled_joints["Chest_U"] = vrm_model.control_joint("chest")
         self.controlled_joints["Chest"] = vrm_model.control_joint("chest")
         self.controlled_joints["Spine"] = vrm_model.control_joint("spine")
-        self.controlled_joints["Shoulder_L"] = vrm_model.control_joint("upper_arm.R")
-        self.controlled_joints["Elbow_L"] = vrm_model.control_joint("lower_arm.R")
-        self.controlled_joints["Hand_L"] = vrm_model.control_joint("hand.R")
-        self.controlled_joints["Shoulder_R"] = vrm_model.control_joint("upper_arm.L")
-        self.controlled_joints["Elbow_R"] = vrm_model.control_joint("lower_arm.L")
-        self.controlled_joints["Hand_R"] = vrm_model.control_joint("hand.L")
+        self.controlled_joints["Shoulder_L"] = vrm_model.control_joint("upper_armR")
+        self.controlled_joints["Elbow_L"] = vrm_model.control_joint("lower_armR")
+        self.controlled_joints["Hand_L"] = vrm_model.control_joint("handR")
+        self.controlled_joints["Shoulder_R"] = vrm_model.control_joint("upper_armL")
+        self.controlled_joints["Elbow_R"] = vrm_model.control_joint("lower_armL")
+        self.controlled_joints["Hand_R"] = vrm_model.control_joint("handL")
 
 
 
         # Run these every frame
         self.taskMgr.add(self.moveCamera, "MoveCamera")
         self.taskMgr.add(self.controlJoint, "ControlJoint", extraArgs=[vrm_model], appendTask=True) # Move the model
-
-        self.taskMgr.add(self.run_physics, 'UpdatePhysics')
-        # self.taskMgr.add(self.update_hair, "UpdateHair", extraArgs=[exposed_nodes, rope_nodes, vrm_model.head_joint], appendTask=True)
 
         # Camera and debug controls
         self.accept("g", self.gDown)
@@ -163,23 +121,6 @@ class MyApp(ShowBase):
         self.accept("arrow_up", self.arrow_upDown)
         self.accept("arrow_down-up", self.arrow_downUp)
         self.accept("arrow_up-up", self.arrow_upUp)
-
-    def run_physics(self, task):
-        dt = globalClock.getDt()
-        self.world.doPhysics(dt)
-        return task.cont
-
-    def update_hair(self, hair, nodes, parent, task):
-        # This will work when Justin makes the new model
-        for strand, rope in zip(hair, nodes):
-            for i in range(len(strand)):
-                if i == 0:
-                    strand[i].lookAt(parent, rope[i + 1].getPos())
-                else:
-                    strand[i].lookAt(strand[i-1], rope[i + 1].getPos())
-                # print(strand[i].getHpr())
-
-        return direct.task.Task.cont
 
     def controlJoint(self, model: VRMLoader, task):
         data = self.landmarker.run()
@@ -238,7 +179,7 @@ class MyApp(ShowBase):
             # Up - down
             shoulder.setR(pitch1)
             # Forward - backward
-            shoulder.setP(heading1)
+            shoulder.setH(heading1)
 
             # Bend
             elbow.setR(pitch2 - pitch1)
@@ -249,10 +190,9 @@ class MyApp(ShowBase):
 
 
         if len(data[4]) > 0 and not self.key_map["b"]:
-            # TODO: remember that i flipped the horizontal earlier in the landmarker
             # X: Increase to right of hips
             # Y: Increase down below hips
-            # Z: Increase towards camera (?)
+            # Z: Increase towards camera
 
             right_shoulder = data[4][11]
             right_elbow = data[4][13]
@@ -267,22 +207,21 @@ class MyApp(ShowBase):
                                     (-left_hand.x, left_hand.y, -left_hand.z))
 
             optimize_bone_for_slope(shoulder_right, elbow_right, hand_right,
-                                    (right_shoulder.x, -right_shoulder.y, -right_shoulder.z),
-                                    (right_elbow.x, -right_elbow.y, -right_elbow.z),
-                                    (right_hand.x, -right_hand.y, -right_hand.z))
+                                    (right_shoulder.x, -right_shoulder.y, right_shoulder.z),
+                                    (right_elbow.x, -right_elbow.y, right_elbow.z),
+                                    (right_hand.x, -right_hand.y, right_hand.z))
         else:
             shoulder_left.setR(60)
-            shoulder_left.setP(0)
+            shoulder_left.setH(0)
             shoulder_right.setR(-60)
-            shoulder_right.setP(0)
+            shoulder_right.setH(0)
 
             elbow_left.setR(0)
             elbow_left.setP(0)
             elbow_right.setR(0)
             elbow_right.setP(0)
 
-        # model.control_joint("HairJoint-1906a1ce-1b58-4a73-8500-32a1e759a35c").setX((math.sin(task.time * 5) + 1) * 90)
-        if data[0] == True:
+        if data[0]:
             inH = data[1][0]
             inP = -data[1][1]
             inR = data[1][2]
@@ -311,15 +250,15 @@ class MyApp(ShowBase):
             for shape in data[3]:
                 match shape.category_name:
                     case "jawOpen":
-                        mouth.setX(numpy.clip(shape.score * 2, 0, 1.2))
+                        mouth.setX(numpy.clip(shape.score * 2, 0, 2))
                     case "eyeBlinkLeft":
                         left = 0.5
-                        right = 0.7
+                        right = 0.6
                         k = max(0, min(1, (shape.score - left)/(right - left)))
                         eye_left.setX(k)
                     case "eyeBlinkRight":
                         left = 0.5
-                        right = 0.7
+                        right = 0.6
                         k = max(0, min(1, (shape.score - left) / (right - left)))
                         eye_right.setX(k)
 

@@ -18,20 +18,14 @@ class VRMLoader:
         body_parts = {}
         body_animations = {}
 
-        print("------------------")
-
         for np in model.get_children():
-            print(np.get_name())
-            np.ls()
             body_parts[np.get_name() if np.get_name() != "toConvert2" else "modelRoot"] = np
             body_animations[np.get_name() if np.get_name() != "toConvert2" else "modelRoot"] = {}
-        print("------------------")
 
 
 
         self.body = Actor(models=body_parts, anims=body_animations)
-        self.body.ls()
-        print(self.body.listJoints())
+        self.head_joint = self.control_joint("head")
 
 
     def _recurse_joint(self, joint, array):
@@ -47,20 +41,14 @@ class VRMLoader:
         self.body.setPos(x, y, z)
         self.pos = (x, y, z)
 
-    def get_hair(self, parent: str, name_mask: str):
-        world = BulletWorld()
-        info = world.getWorldInfo()
-        info.setAirDensity(1.2)
-        info.setWaterDensity(0)
-        info.setWaterOffset(0)
-        info.setWaterNormal((0, 0, 0))
-
+    def get_hair(self, parent: str):
+        print("---- Getting Hair ----")
         all_positions = []
         hair_groups = []
         parent_node = self.body.get_joints(jointName=parent)[0]
-        print(parent_node.getChildren())
         for c in parent_node.getChildren():
-            if c.getName().startswith(name_mask):
+            if "hair" in c.getName() or "ponytail" in c.getName():
+                print(c.getName())
                 group = []
                 self._recurse_joint(c, group)
                 positions = [(-j.getPos().x * self.scale + self.pos[0],
